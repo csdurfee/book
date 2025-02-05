@@ -34,12 +34,11 @@ def money_vs_ats_from_data(data):
 
     return df
 
-def get_ats_for_range(start=START_DATE, end=END_DATE, dir='sbr'):
+def get_ats_for_range(start=START_DATE, end=END_DATE, dir='sbr', window=None):
+    # get record ATS for every day in range.
     output = {}
     raw_dfs = {}
     range = pd.date_range(start, end).strftime("%Y-%m-%d")
-    ### what I am trying to do here:
-    ###  get the against-the-spread records for each day.
     for day in range:
         daily_data = clean_data(start=day, end=day, dir=dir)
         if daily_data is None:
@@ -47,7 +46,11 @@ def get_ats_for_range(start=START_DATE, end=END_DATE, dir='sbr'):
             continue
         raw_dfs[day] = daily_data
         # create a dataframe of everything in raw_dfs.values()
-        season_to_date = pd.concat(raw_dfs.values())
+        if window is not None:
+            data_in_range = list(raw_dfs.values())[-window:]
+        else:
+            data_in_range = raw_dfs.values()
+        season_to_date = pd.concat(data_in_range)
 
         output[day] = money_vs_ats_from_data(season_to_date)
 
@@ -100,7 +103,7 @@ def handle_money_wl(df):
     return df
 
 def handle_lines(df):
- # extract the opening (away) lines
+    # extract the opening (away) lines
     open_away_lines = df.away_opens.str.extract(r'([\d\.\+\-]+)([\-\+][\d]+)')
     df['open_away_spread']  = open_away_lines[0].astype("float")
     df['open_away_vig']     = open_away_lines[1].astype("float")
@@ -112,17 +115,21 @@ def handle_lines(df):
 
     df['score_diff'] = df['away_scores'] - df['home_scores']
 
+    # IMPORTANT: these are versus the line for the away team
     # determine winner vs opening and closing line
     df['with_line'] = df['score_diff'] + df['away_spread']
-
     df['open_with_line'] = df['score_diff'] + df['open_away_spread']
 
     # if with_line < 0, then the away team lost, otherwise they won ATS
     df['winner_ats'] = None
-    df['fave_dog'] = None
 
     df.loc[df.with_line > 0, 'winner_ats'] = 'AWAY'
     df.loc[df.with_line < 0, 'winner_ats'] = 'HOME'
+
+    df['open_winner_ats'] = None
+    df.loc[df.open_with_line > 0, 'open_winner_ats'] = 'AWAY'
+    df.loc[df.open_with_line < 0, 'open_winner_ats'] = 'HOME'
+
 
     # if away_spread > 0 and with_line > 0: away underdog won
     #                        with_line < 0: away favorite won
@@ -133,12 +140,31 @@ def handle_lines(df):
     #                                  < 0: home underdog won                             
     home_faves = ((df.away_spread < 0) & (df.with_line > 0))
     home_dogs  = ((df.away_spread < 0) & (df.with_line < 0))
-    
+    df['fave_dog'] = None
+
     df.loc[away_dogs, 'fave_dog']  = "DOG"
     df.loc[away_faves, 'fave_dog'] = "FAVE"
 
     df.loc[home_faves, 'fave_dog'] = "FAVE"
     df.loc[home_dogs, 'fave_dog']  = "DOG"
+
+########################
+    df['open_fave_dog'] = None
+    open_away_dogs  = ((df.open_away_spread > 0) & (df.open_with_line > 0))
+    open_away_faves = ((df.open_away_spread > 0) & (df.open_with_line < 0))
+
+    # if away_spread < 0 and with_line > 0: home favorite won
+    #                                  < 0: home underdog won                             
+    open_home_faves = ((df.open_away_spread < 0) & (df.open_with_line > 0))
+    open_home_dogs  = ((df.open_away_spread < 0) & (df.open_with_line < 0))
+    
+    df.loc[open_away_dogs, 'open_fave_dog']  = "DOG"
+    df.loc[open_away_faves, 'open_fave_dog'] = "FAVE"
+
+    df.loc[open_home_faves, 'open_fave_dog'] = "FAVE"
+    df.loc[open_home_dogs, 'open_fave_dog']  = "DOG"
+
+
 
     # add the name of the winner/loser against the spread.
     df['winner_ats_name'] = None
