@@ -11,7 +11,7 @@ This code scrapes NBA betting information from sportsbookreview.com
 
 """
 START_DATE = datetime.datetime(2024, 10, 22)
-END_DATE = datetime.datetime(2025, 1, 5)
+END_DATE = datetime.datetime(2025, 2, 5)
 
 SAMPLE_PAGE = "https://www.sportsbookreview.com/betting-odds/nba-basketball/"
 
@@ -31,6 +31,9 @@ def money_vs_ats_from_data(data):
     df = df.fillna(0)
     df['ats_win_pct'] = df.winner / (df.winner + df.loser)
     df['money_percents'] = combo_percents
+
+    ## how many games has each team gotten the majority of the money?
+    df['money_game_winners'] = data.money_winner.value_counts()
 
     return df
 
@@ -64,7 +67,7 @@ def get_money(df):
     combined_percents = home_percents.add(away_percents, fill_value=50)
     return combined_percents
 
-def get_money_for_range(start=START_DATE, end=END_DATE, dir='sbr'):
+def get_money_for_range(start=START_DATE, end=END_DATE, dir='sbr', verbose=False):
     """
     this will do get_money for a range of dates. 
     
@@ -79,7 +82,8 @@ def get_money_for_range(start=START_DATE, end=END_DATE, dir='sbr'):
     for day in range:
         daily_data = clean_data(start=day, end=day, dir=dir)
         if daily_data is None:
-            print(f"Skipping {day}, no data")
+            if verbose:
+                print(f"Skipping {day}, no data")
             continue
         
         raw_dfs[day] = daily_data
