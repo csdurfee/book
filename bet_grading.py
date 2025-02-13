@@ -3,34 +3,43 @@
 import pandas as pd
 import numpy as np
 
-np.random.seed(2718)
 from io import StringIO
 
 class BetGrading:
     def __init__(self):
         self.rng = np.random.default_rng(2718)
 
+        # number of bets in each simulated betting record
+        self.df_size = 500
+
+        # win rate for each category of bet
         self.thresholds = {
             'A': .60,
             'B': .57,
             'F': .54
         }
 
+        # how often each category comes up
         self.grade_frequencies = {
             'A': .2,
             'B': .3,
             'F': .5
         }
 
+        # how many 'units' to bet on each category.
         self.units_map = {
             'A': 3,
             'B': 2,
             'F': 1
         }
 
+        self.scramble_frequency = 0
+
     def create_df(self, num_bets):
         results = []
-        grades = self.rng.choice(["A", "B", "F"], size=num_bets, p=list(self.grade_frequencies.values()))
+        grades = self.rng.choice(list(self.grade_frequencies.keys()), 
+                                 size=num_bets, 
+                                 p=list(self.grade_frequencies.values()))
         for x in range(num_bets):
             grade = grades[x]
             if self.rng.random() < self.thresholds[grade]:
@@ -67,10 +76,11 @@ class BetGrading:
 
     def get_unit_multiplier(self, base_df):
         # average number of units bet
-        # need to use record.grades
-
         actual_frequencies = base_df.grades.value_counts() / len(base_df.grades)
-        return (pd.Series(self.units_map) * actual_frequencies).sum()
+        # TODO: should thie be theoretical frequencies instead?
+
+        #return (pd.Series(self.units_map) * actual_frequencies).sum()
+        return (pd.Series(self.units_map) * pd.Series(self.grade_frequencies)).sum()
 
     def score_bets_normally(self, base_df, unit_multiplier=None):
 
@@ -101,7 +111,7 @@ class BetGrading:
         losses = []
 
         for x in range(1000):
-            base_df = self.create_df(200)
+            base_df = self.create_df(self.df_size)
             multi = self.get_unit_multiplier(base_df)
                 
             with_grade = self.score_bets_with_grade(base_df)
@@ -121,13 +131,14 @@ class BetGrading:
         print(f"mean diff: { np.mean(diffs) }")
         return diffs, losses
 
-    def test_some_grades(self, n):
+    def test_some_grades(self, n, df_size, num_to_scramble):
         good = []
         bad = []
         normal = []
+        fraction_agree = []
 
         for x in range(n):
-            bets = self.create_df(200)
+            bets = self.create_df(df_size)
 
             normal_score = self.score_bets_normally(bets) 
             normal.append(normal_score)
@@ -141,8 +152,9 @@ class BetGrading:
             # I'm not sure what a reasonable number of each class is to change.
             # seems like it should match proportion of actual sample.
             ### select indexes to change
-            idx_to_change = np.random.choice(bets.index, 300)
-            vals_to_change = np.random.choice(['A', 'B', 'F'], 300, p=[.2,.3,.5])
+
+            idx_to_change = np.random.choice(bets.index, num_to_scramble)
+            vals_to_change = np.random.choice(['A', 'B', 'F'], num_to_scramble, p=[.2,.3,.5])
 
             ## just randomly pick 30% of the rows, blank them out,
             ## then fill them back in with random weighted selections of F/B/A
@@ -150,7 +162,9 @@ class BetGrading:
             bad_grading.loc[idx_to_change, 'grades'] = vals_to_change
 
             #print(f"changed {sum(bets.grades != bad_grading.grades)}")
+            fraction_agree.append(sum(bad_grading.grades == bets.grades) / len(bets))
 
             bad_score = self.score_bets_with_grade(bad_grading)
             bad.append(bad_score)
-        return pd.DataFrame({'good': good, 'bad': bad, 'normal': normal})
+        return pd.DataFrame({'good': good, 'bad': bad, 'flat': normal, 
+                             'fraction_agree': fraction_agree})
