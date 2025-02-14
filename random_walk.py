@@ -64,9 +64,22 @@ class RandomWalk:
                 axs[x,y].set_xticks([])
                 axs[x,y].plot(random_walks[walk_counter][0])
                 axs[x,y].axhline(0)
+
                 if show_partitions:
-                    axs[x,y].vlines(random_walks[walk_counter][1], 0,50, 'g')
-                    axs[x,y].vlines(random_walks[walk_counter][2], 0, 50, 'r')   
+                    ticks_up    = random_walks[walk_counter][1]
+                    ticks_down  = random_walks[walk_counter][2]
+
+                    for tick in range(len(ticks_up)):
+                        # it always starts with a green region
+                        axs[x,y].axvspan(ticks_up[tick], ticks_down[tick], facecolor='green', 
+                                        alpha=0.5)
+                        if tick < (len(ticks_up) - 1):
+                            axs[x,y].axvspan(ticks_down[tick], ticks_up[tick + 1], facecolor='red', 
+                                        alpha=0.5)
+                            
+                        else:
+                            axs[x,y].axvspan(ticks_down[tick], len(random_walks[walk_counter][0]), facecolor='red', 
+                                        alpha=0.5)
                 walk_counter += 1
-        plt.figure(figsize=(8,8)) # FIXME: this isn't working to make the image bigger.
+        #plt.figure(figsize=(12,12)) # FIXME: this isn't working to make the image bigger.
     
