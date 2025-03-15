@@ -7,14 +7,18 @@ class RandomWalk:
         self.rng = np.random.default_rng(2718)
         self.VIG = -1.1
 
+    def gen_random_walk(self, p, n):
+        win_or_lose = (np.random.rand(n) < p).astype("float")
+        win_or_lose[win_or_lose==0] = self.VIG
+        random_walk = np.cumsum(win_or_lose)
+        return random_walk
+
     def plot_random_walk(self, p, n=1000):
         fig, axs = plt.subplots(3,3, sharey='all')
-        plt.suptitle(f"random walk with p={p}")
+        plt.suptitle(f"random walk with p={np.round(p, 3)}")
         for x in range(3):
             for y in range(3):
-                win_or_lose = (np.random.rand(n) < p).astype("float")
-                win_or_lose[win_or_lose==0] = self.VIG
-                random_walk = np.cumsum(win_or_lose)
+                random_walk = self.gen_random_walk(p, n)
                 axs[x,y].plot(random_walk)
                 axs[x,y].axhline(0)
 
@@ -29,11 +33,13 @@ class RandomWalk:
         for x in range(periods):
             # every `period_length` days, the skill level can change.
             if determinate:
+                # always flips from good/bad or bad/good
                 # take the other one. not the nicest way to do it.
                 skill_copy = skill_levels.copy()
                 skill_copy.remove(prev_skill)
                 current_skill = skill_copy[0]
             else:
+                # randomly flip between good and bad (so it can stay the same for multiple periods)
                 current_skill = np.random.choice(skill_levels)
 
             # mark every time we switch skill_levels
@@ -65,12 +71,15 @@ class RandomWalk:
                 axs[x,y].plot(random_walks[walk_counter][0])
                 axs[x,y].axhline(0)
 
+                # this draws the regions where the skill is up/down
                 if show_partitions:
+                    # right now this won't handle random switching (determinate=False), since it assumes
+                    # that the walk always starts with a green period.
                     ticks_up    = random_walks[walk_counter][1]
                     ticks_down  = random_walks[walk_counter][2]
 
                     for tick in range(len(ticks_up)):
-                        # it always starts with a green region
+                        # assume it always starts with a green region
                         axs[x,y].axvspan(ticks_up[tick], ticks_down[tick], facecolor='green', 
                                         alpha=0.5)
                         if tick < (len(ticks_up) - 1):
@@ -78,6 +87,7 @@ class RandomWalk:
                                         alpha=0.5)
                             
                         else:
+                            # last region -- do it to the end of the graph.
                             axs[x,y].axvspan(ticks_down[tick], len(random_walks[walk_counter][0]), facecolor='red', 
                                         alpha=0.5)
                 walk_counter += 1
