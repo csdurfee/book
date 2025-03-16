@@ -74,7 +74,7 @@ def do_some_bets(skill = .5, payout=1000, vig=1.1, throw_one_out=False,
         print(f"parlay: {parlay_profit_loss:,.2f}, straight: {straight_profit_loss:,.2f}, ratio: {ratio}")
     return (parlay_profit_loss, straight_profit_loss)
 
-def parlay_vs_straight(skill=.55):
+def parlay_vs_straight(skill=.55, num_parlays=50):
     parlay_wins = 0
     straight_wins = 0
 
@@ -87,7 +87,8 @@ def parlay_vs_straight(skill=.55):
     all_results = []
 
     for x in range(10000):
-        results = do_some_bets(skill=skill, payout=1228.33, num_parlays=50, silent=True)
+        results = do_some_bets(skill=skill, payout=1228.33, 
+                               num_parlays=num_parlays, silent=True)
         if results[0] > results[1]:
             parlay_wins += 1
         elif results[1] > results[0]:
